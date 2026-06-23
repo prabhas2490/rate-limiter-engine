@@ -8,7 +8,7 @@ class RateLimitRequest(BaseModel):
     client_id: str
     limit: int
     window: int
-
+# POST /check - returns allowed/blocked decision for incoming request
 @router.post("/check")
 def check_rate_limit(request: RateLimitRequest):
     result = token_bucket(
