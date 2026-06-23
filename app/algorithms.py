@@ -1,6 +1,7 @@
 import time
 from app.redis_client import client
 
+# Token Bucket: allows bursts up to limit, refills at steady rate
 def token_bucket(client_id: str, limit: int, window: int) -> dict:
     key = f"token_bucket:{client_id}"
     now = time.time()
