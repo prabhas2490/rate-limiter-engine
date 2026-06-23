@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rate Limiter Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f0f0f; color: #e0e0e0; font-family: monospace; padding: 40px; }
+    h1 { color: #00ff88; margin-bottom: 30px; font-size: 24px; }
+    .card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+    .card h2 { color: #00ff88; margin-bottom: 16px; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
+    input, select { background: #0f0f0f; border: 1px solid #444; color: #e0e0e0; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 14px; width: 200px; margin-right: 10px; }
+    button { background: #00ff88; color: #0f0f0f; border: none; padding: 10px 20px; border-radius: 4px; font-family: monospace; font-size: 14px; font-weight: bold; cursor: pointer; }
+    button:hover { background: #00cc66; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 16px; }
+    .stat { background: #0f0f0f; border-radius: 6px; padding: 16px; text-align: center; }
+    .stat .value { font-size: 32px; font-weight: bold; color: #00ff88; }
+    .stat .label { font-size: 11px; color: #666; margin-top: 4px; text-transform: uppercase; }
+    .bucket { background: #0f0f0f; border-radius: 6px; padding: 16px; margin-top: 16px; }
+    .bucket-bar-bg { background: #333; border-radius: 4px; height: 24px; margin-top: 8px; }
+    .bucket-bar { background: #00ff88; height: 24px; border-radius: 4px; transition: width 0.3s ease; }
+    .log { background: #0f0f0f; border-radius: 6px; padding: 16px; margin-top: 16px; max-height: 200px; overflow-y: auto; }
+    .log-entry { padding: 6px 0; border-bottom: 1px solid #1a1a1a; font-size: 13px; }
+    .allowed { color: #00ff88; }
+    .blocked { color: #ff4444; }
+    .status-allowed { color: #00ff88; font-size: 18px; font-weight: bold; }
+    .status-blocked { color: #ff4444; font-size: 18px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>⚡ Rate Limiter Engine</h1>
+
+  <div class="card">
+    <h2>Send Request</h2>
+    <input type="text" id="clientId" placeholder="client_id" value="user_123">
+    <input type="number" id="limit" placeholder="limit" value="5">
+    <input type="number" id="window" placeholder="window (s)" value="60">
+    <button onclick="sendRequest()">Send Request</button>
+    <div style="margin-top: 16px; font-size: 20px;" id="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Stats</h2>
+    <div class="stats">
+      <div class="stat"><div class="value" id="total">0</div><div class="label">Total</div></div>
+      <div class="stat"><div class="value allowed" id="allowed">0</div><div class="label">Allowed</div></div>
+      <div class="stat"><div class="value blocked" id="blocked">0</div><div class="label">Blocked</div></div>
+      <div class="stat"><div class="value" id="remaining">-</div><div class="label">Remaining</div></div>
+    </div>
+    <div class="bucket">
+      <div style="font-size: 12px; color: #666;">BUCKET FILL LEVEL</div>
+      <div class="bucket-bar-bg">
+        <div class="bucket-bar" id="bucketBar" style="width: 100%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Request Log</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+  <script>
+    let total = 0, allowed = 0, blocked = 0;
+
+    async function sendRequest() {
+      const clientId = document.getElementById('clientId').value;
+      const limit = parseInt(document.getElementById('limit').value);
+      const window_ = parseInt(document.getElementById('window').value);
+
+      const res = await fetch('/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientId, limit: limit, window: window_ })
+      });
+
+      const data = await res.json();
+      total++;
+
+      if (data.allowed) {
+        allowed++;
+        document.getElementById('status').innerHTML = '<span class="status-allowed">✓ ALLOWED</span>';
+      } else {
+        blocked++;
+        document.getElementById('status').innerHTML = '<span class="status-blocked">✗ BLOCKED</span>';
+      }
+
+      document.getElementById('total').textContent = total;
+      document.getElementById('allowed').textContent = allowed;
+      document.getElementById('blocked').textContent = blocked;
+      document.getElementById('remaining').textContent = data.remaining;
+
+      const pct = (data.remaining / limit) * 100;
+      document.getElementById('bucketBar').style.width = pct + '%';
+      document.getElementById('bucketBar').style.background = pct > 50 ? '#00ff88' : pct > 20 ? '#ffaa00' : '#ff4444';
+
+      const log = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      const time = new Date().toLocaleTimeString();
+      entry.innerHTML = `<span class="${data.allowed ? 'allowed' : 'blocked'}">${data.allowed ? '✓' : '✗'}</span> [${time}] ${clientId} — remaining: ${data.remaining}/${limit}`;
+      log.insertBefore(entry, log.firstChild);
+    }
+  </script>
+</body>
+</html>
