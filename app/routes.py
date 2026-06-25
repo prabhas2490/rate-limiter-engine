@@ -16,6 +16,4 @@ def check_rate_limit(request: RateLimitRequest):
         limit=request.limit,
         window=request.window
     )
-    if not result["allowed"]:
-        raise HTTPException(status_code=429, detail="Rate limit exceeded")
     return result
